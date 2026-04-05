@@ -23,4 +23,3 @@ plt.ylabel("Displacement x [m]")
 plt.grid()
 plt.tight_layout()
 plt.show()
-tomer hamek
