@@ -1,0 +1,19 @@
+import serial
+import time
+
+PORT = "COM5"          # change if needed
+BAUD = 115200
+FILENAME = "pulley_100Hz_long.csv"
+
+ser = serial.Serial(PORT, BAUD, timeout=1)
+time.sleep(2)  # Arduino reset
+
+with open(FILENAME, "w") as f:
+    print("Logging...")
+    while True:
+        line = ser.readline().decode(errors="ignore").strip()
+        if line and line[0].isdigit():
+            f.write(line + "\n")
+            f.flush()  # important for long runs
+
+ser.close()
