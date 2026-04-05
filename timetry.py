@@ -89,7 +89,7 @@ for start, end in events_merged:
 fig.update_layout(
     title=f"Event Analysis (Wait Time: {COALESCENCE_TIME}s)",
     hovermode="x unified",
-    height=800,  # Taller figure to fit both graphs
+    height=800,  # Tallaaaer figure to fit both graphs
     showlegend=True
 )
 
