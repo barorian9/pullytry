@@ -17,7 +17,7 @@ for c in df.columns:
 df = df.dropna()
 
 fig = go.Figure()
-fig.add_trace(go.Scattergl(
+fig.add_trace(go.Scatter(
     x=df["t_s"],
     y=df["x_m"],
     mode="markers",      # use "markers" if you want every sample as dots

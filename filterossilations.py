@@ -7,8 +7,8 @@ from scipy.signal import medfilt
 # --- Parameters ---
 CSV = "24.csv"
 VELOCITY_THRESHOLD = 0.0085   # Threshold for the SMOOTHED velocity
-COALESCENCE_TIME = 0.135     # Merge events closer than this (seconds)
-RINGING_FREQ_HZ = 6        # The frequency to filter out
+COALESCENCE_TIME = 0.065     # Merge events closer than this (seconds)
+RINGING_FREQ_HZ = 6       # The frequency to filter out
 
 # --- Load & Prep ---
 df = pd.read_csv(CSV, names=["t_s", "count", "theta_rad", "x_m"], comment="#", on_bad_lines="skip")
@@ -37,7 +37,7 @@ df["v_filtered_abs"] = df["v_filtered"].abs()
 
 # --- 2. EVENT DETECTION (On Smoothed Data) ---
 # We use 'v_filtered_abs' here, so we aren't detecting the ringing noise
-df["is_active"] = df["v_filtered_abs"] > VELOCITY_THRESHOLD
+df["is_active"] = df["v_filtered"] < -VELOCITY_THRESHOLD
 
 active_indices = df[df["is_active"]].index
 events_merged = []
@@ -72,7 +72,7 @@ fig = make_subplots(
 fig.add_trace(go.Scattergl(
     x=df["t_s"], y=df["x_m"],
     mode="lines",
-    line=dict(color='lightgray', width=1),
+    line=dict(color='red', width=1),
     opacity=0.5,
     name="Raw Displacement"
 ), row=1, col=1)

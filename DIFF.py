@@ -38,7 +38,7 @@ fig = make_subplots(
 
 # 1. Velocity vs Time (Color-coded by threshold)
 # Background (Noise)
-fig.add_trace(go.Scattergl(
+fig.add_trace(go.Scatter(
     x=df.loc[~df["is_event"], "t_s"],
     y=df.loc[~df["is_event"], "v_mps"],
     mode="markers",
@@ -47,7 +47,7 @@ fig.add_trace(go.Scattergl(
 ), row=1, col=1)
 
 # Foreground (Events)
-fig.add_trace(go.Scattergl(
+fig.add_trace(go.Scatter(
     x=df.loc[df["is_event"], "t_s"],
     y=df.loc[df["is_event"], "v_mps"],
     mode="markers",
@@ -60,7 +60,7 @@ fig.add_hline(y=VELOCITY_THRESHOLD, line_dash="dash", line_color="black", row=1,
 fig.add_hline(y=-VELOCITY_THRESHOLD, line_dash="dash", line_color="black", row=1, col=1)
 
 # 2. Displacement vs Time (Reference)
-fig.add_trace(go.Scattergl(
+fig.add_trace(go.Scatter(
     x=df["t_s"], y=df["x_m"],
     mode="lines", line=dict(color='blue', width=1),
     name="Displacement"
