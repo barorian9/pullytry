@@ -69,7 +69,7 @@ fig = make_subplots(
 
 # --- ROW 1: Displacement ---
 # Raw (Background, Faint)
-fig.add_trace(go.Scattergl(
+fig.add_trace(go.Scatter(
     x=df["t_s"], y=df["x_m"],
     mode="lines",
     line=dict(color='red', width=1),
@@ -78,7 +78,7 @@ fig.add_trace(go.Scattergl(
 ), row=1, col=1)
 
 # Filtered (Foreground, Dark)
-fig.add_trace(go.Scattergl(
+fig.add_trace(go.Scatter(
     x=df["t_s"], y=df["x_filtered"],
     mode="lines",
     line=dict(color='#2c3e50', width=2),
@@ -87,7 +87,7 @@ fig.add_trace(go.Scattergl(
 
 # --- ROW 2: Velocity ---
 # This is the velocity of the CLEAN signal
-fig.add_trace(go.Scattergl(
+fig.add_trace(go.Scatter(
     x=df["t_s"], y=df["v_filtered"],
     mode="lines",
     line=dict(color='#e74c3c', width=1),
@@ -95,7 +95,7 @@ fig.add_trace(go.Scattergl(
 ), row=2, col=1)
 
 # Plot the Threshold Crossings (on the filtered data)
-fig.add_trace(go.Scattergl(
+fig.add_trace(go.Scatter(
     x=df.loc[df["is_active"], "t_s"],
     y=df.loc[df["is_active"], "v_filtered"],
     mode="markers",

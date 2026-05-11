@@ -90,6 +90,11 @@ for i in range(1, FILE_COUNT + 1):
 # --- 2. Plotting ---
 results_df = pd.DataFrame(all_event_metrics)
 
+# Shift t=0 to first event per run (raw data unchanged)
+shifted_df = results_df.copy()
+t0_per_run = shifted_df.groupby("file_id")["time"].transform("min")
+shifted_df["time"] = shifted_df["time"] - t0_per_run
+
 if results_df.empty:
     print("No events detected. Check threshold parameters.")
 else:
@@ -106,7 +111,7 @@ else:
         return scale * x ** exponent
 
     for col_idx, win in enumerate(WINDOWS, start=1):
-        mask = (results_df["time"] >= win["t_min"]) & (results_df["time"] < win["t_max"])
+        mask = (shifted_df["time"] >= win["t_min"]) & (shifted_df["time"] < win["t_max"])
         win_data = results_df[mask]["waiting_time"].dropna()
 
         if len(win_data) < 5:
@@ -189,7 +194,7 @@ else:
     fig2 = go.Figure()
 
     for win in WINDOWS:
-        mask = (results_df["time"] >= win["t_min"]) & (results_df["time"] < win["t_max"])
+        mask = (shifted_df["time"] >= win["t_min"]) & (shifted_df["time"] < win["t_max"])
         win_data = results_df[mask]["waiting_time"].dropna()
         if len(win_data) < 5:
             continue

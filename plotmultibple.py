@@ -81,11 +81,18 @@ for i in range(1, FILE_COUNT + 1):
 
 # --- 2. Interactive Plotting with Plotly ---
 results_df = pd.DataFrame(all_event_metrics)
-results_df.to_csv("event_data.csv", index=False)
+results_df.to_csv("event_data.csv", index=False)  # raw times preserved
+
+# Shifted version: t=0 is first detected event per run
+shifted_df = results_df.copy()
+t0_per_run = shifted_df.groupby("file_id")["time"].transform("min")
+shifted_df["time"] = shifted_df["time"] - t0_per_run
+shifted_df.to_csv("event_data_shifted.csv", index=False)
+
 if results_df.empty:
     print("No events detected. Check threshold parameters.")
 else:
-    aging_df = results_df[results_df["time"] > np.exp(0)]
+    aging_df = shifted_df[shifted_df["time"] > np.exp(0)]
 
     wait_bins = np.geomspace(WAIT_MIN, WAIT_MAX, N_BINS + 1)
     mag_bins  = np.geomspace(MAG_MIN,  MAG_MAX,  N_BINS + 1)
