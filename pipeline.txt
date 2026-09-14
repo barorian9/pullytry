@@ -10,7 +10,7 @@ time-windowed power law fits, avalanche size distribution).
 All runs are numbered 1.csv to 30.csv. The pipeline is applied identically to each run.
 
 
-STAGE 1 — DATA ACQUISITION (trypully.py)
+STAGE 1 — DATA ACQUISITION (pulley_activate.py)
 -----------------------------------------
 Hardware: Arduino encoder logging pulley position at ~100 Hz via serial port.
 Output columns per row: t_s, count, theta_rad, x_m
@@ -205,11 +205,15 @@ MAG_MIN/MAX        = 1e-6   / 0.1   m
 
 FILE DEPENDENCY GRAPH
 ----------------------
-trypully.py
+pulley_activate.py
   └─► 1.csv … 30.csv
-        └─► plotmultibple.py
-              └─► event_data.csv
-              └─► event_data_shifted.csv
-                    ├─► log_for_dif_times.py   (re-processes CSVs + uses shifted times)
-                    └─► inter_avalanche_claude.py
-              └─► verifyeventdetection.py       (reads one CSV + event_data.csv)
+        ├─► plotmultibple.py
+        │     ├─► event_data.csv
+        │     │     ├─► pm_finder.py              (P(M), fixed 10s threshold)
+        │     │     └─► verifyeventdetection.py   (reads one CSV + event_data.csv)
+        │     └─► event_data_shifted.csv
+        │           ├─► inter_avalanche_claude.py (P(M), dynamic C·t threshold)
+        │           └─► cutoff_finder.py          (reads CSVs + event_data_shifted.csv)
+        ├─► log_for_dif_times.py   (independent: re-runs detection on raw CSVs)
+        ├─► filtration.py          (single-run filter check)
+        └─► filterossilations.py   (single-run detector check)
