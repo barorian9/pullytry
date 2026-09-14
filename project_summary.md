@@ -311,16 +311,23 @@ The waiting time distribution has two regimes:
 
 ## 9. Code Files Summary
 
-All code was written in Python using: `pandas`, `numpy`, `scipy.signal.medfilt`, `plotly.graph_objects`, `plotly.subplots`, `scipy.optimize.curve_fit`
+All code is Python using: `pandas`, `numpy`, `scipy.signal.medfilt`, `plotly.graph_objects`, `plotly.subplots`
 
-**Main scripts produced during this conversation:**
-1. `main_analysis.py` — event detection loop, produces event_data.csv, 3-panel plot
-2. `waiting_time_windows.py` — aging analysis with 5 time windows
-3. `inter_avalanche_claude.py` — avalanche analysis with dynamic C·t threshold
-4. `cutoff_finder.py` — threshold validation (3 approaches)
-5. `threshold_verification.py` — 30-run grid plot with threshold candidates
-6. `event_detection_verify.py` — single run verification plot
-7. `avalanche_pm.py` — final P(M) plot with count bar chart
+**Pipeline:**
+1. `pulley_activate.py` — serial acquisition from Arduino, writes N.csv
+2. `plotmultibple.py` — event detection loop over 30 runs, produces event_data.csv + event_data_shifted.csv, 3-panel plot
+3. `log_for_dif_times.py` — aging analysis with 5 ln(t) windows (re-runs detection on raw CSVs)
+4. `pm_finder.py` — P(M) with fixed 10s threshold, plus count-per-size bar chart
+5. `inter_avalanche_claude.py` — P(M) with dynamic C·t threshold (exploratory, not current result)
+
+**Diagnostics:**
+6. `cutoff_finder.py` — per-run Δt vs t grid with fixed threshold candidates
+7. `verifyeventdetection.py` — single-run event detection overlay
+8. `filtration.py` — single-run median filter check
+9. `filterossilations.py` — single-run filter + detector check
+
+**Exploratory (early, pre-pipeline — different parameters, no ringing filter):**
+10. `derivative_threshold.py`, `timetry.py`, `tryploting.py`, `plotlyinteractive.py`, `12.py`
 
 ---
 
