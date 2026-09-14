@@ -1,0 +1,215 @@
+FULL ANALYSIS PIPELINE — PULLEY EXPERIMENT
+==========================================
+
+OVERVIEW
+--------
+Raw encoder data from an Arduino-connected pulley → filtered displacement → velocity derivative →
+event detection → per-event metrics → statistical plots (aging, waiting time PDF, magnitude PDF,
+time-windowed power law fits, avalanche size distribution).
+
+All runs are numbered 1.csv to 30.csv. The pipeline is applied identically to each run.
+
+
+STAGE 1 — DATA ACQUISITION (trypully.py)
+-----------------------------------------
+Hardware: Arduino encoder logging pulley position at ~100 Hz via serial port.
+Output columns per row: t_s, count, theta_rad, x_m
+  - t_s       : time in seconds
+  - count     : encoder tick count
+  - theta_rad : angle in radians
+  - x_m       : linear displacement in meters (derived from encoder)
+
+Lines beginning with '#' are comments/sync signals and are skipped on load.
+The file writes a "#START" sync signal before data begins.
+Output: raw CSV files 1.csv … 30.csv
+
+
+STAGE 2 — LOAD & CLEAN (plotmultibple.py, per run)
+----------------------------------------------------
+- Read CSV with columns [t_s, count, theta_rad, x_m], skipping bad lines
+- Coerce all columns to numeric, drop any row with NaN
+- Compute median sample interval: dt_median = median(diff(t_s))
+- Skip run if dt_median is NaN or zero
+- Sampling rate: fs = 1 / dt_median
+
+
+STAGE 3 — MEDIAN FILTER (remove mechanical ringing)
+-----------------------------------------------------
+The raw displacement x_m contains oscillations at ~6 Hz caused by mechanical ringing.
+These are removed before differentiation to prevent false velocity spikes.
+
+Window size = 1 period of ringing frequency:
+  window_samples = int((1 / RINGING_FREQ_HZ) * fs)   where RINGING_FREQ_HZ = 6
+  window_samples is forced odd (required by medfilt)
+
+Apply:
+  x_filtered = medfilt(x_m, kernel_size=window_samples)
+
+The median filter suppresses the oscillations while preserving the step-like displacement
+events that are the physical signal of interest.
+
+
+STAGE 4 — VELOCITY (finite difference derivative)
+--------------------------------------------------
+Velocity is computed from the FILTERED displacement, not raw:
+  v_filtered     = diff(x_filtered) / diff(t_s)    [m/s]
+  v_filtered_abs = abs(v_filtered)
+
+Using filtered displacement ensures the derivative is not dominated by ringing noise.
+
+
+STAGE 5 — EVENT DETECTION
+--------------------------
+A sample is "active" if:
+  v_filtered_abs > VELOCITY_THRESHOLD    where VELOCITY_THRESHOLD = 0.0085 m/s
+
+This threshold was chosen empirically to separate physical slip events from noise floor.
+
+Coalescence merging:
+  Consecutive active samples separated by a gap < COALESCENCE_TIME (0.135 s) are merged
+  into a single event. This prevents one physical slip from being counted as multiple events
+  due to brief dips below threshold.
+
+Algorithm:
+  1. Collect all active sample times into active_times[]
+  2. Compute time_diffs = diff(active_times)
+  3. break_points = indices where time_diffs > COALESCENCE_TIME
+  4. Each pair (event_starts[k], event_ends[k]) defines one merged event
+
+
+STAGE 6 — PER-EVENT METRICS
+----------------------------
+For each merged event (start, end):
+
+  time:
+    t_s value at the sample with peak velocity (idxmax of v_filtered_abs within event)
+    This is the event timestamp used in all downstream analysis.
+
+  waiting_time:
+    start_j - end_{j-1}   (gap between end of previous event and start of current)
+    NaN for the first event of each run.
+
+  magnitude:
+    |x_filtered(end) - x_filtered(start)|
+    Displacement amplitude of the slip event in meters.
+
+Output saved to: event_data.csv  (columns: file_id, time, waiting_time, magnitude)
+
+
+STAGE 7 — TIME SHIFTING
+------------------------
+For the aging analysis, time is shifted so t=0 is the first detected event per run:
+  t0 = min(time) per file_id
+  shifted_time = time - t0
+
+Output saved to: event_data_shifted.csv
+
+Raw event_data.csv is preserved (unshifted) for waiting_time and magnitude distributions.
+
+
+STAGE 8 — PLOTS (plotmultibple.py)
+------------------------------------
+All three plots use log-log axes.
+
+Panel 1 — Aging plot:
+  x = shifted time t (log scale)
+  y = waiting time Δt (log scale)
+  Filter: only events with shifted t > e^0 = 1s (removes the very early transient)
+  Color = file_id (Viridis colorscale)
+  Physical interpretation: aging behavior — waiting times grow as the system evolves
+
+Panel 2 — Waiting Time PDF:
+  Data: waiting_time from unshifted event_data.csv (all runs combined)
+  Binning: 50 log-spaced bins over [0.001, 100] seconds (np.geomspace)
+  Normalization: density=True (area under histogram = 1)
+  Reference lines overlaid:
+    - Red dashed:    y ∝ t^{-1}, anchored at t=2s to histogram value there
+    - Orange dashed: y ∝ t^{-2}, anchored at t=20s (connected to the t^{-1} line)
+
+Panel 3 — Magnitude PDF:
+  Data: magnitude from event_data.csv (all runs combined)
+  Binning: 50 log-spaced bins over [1e-6, 0.1] meters (np.geomspace)
+  Normalization: density=True
+
+
+STAGE 9 — TIME-WINDOWED POWER LAW FITS (log_for_dif_times.py)
+--------------------------------------------------------------
+Same data processing pipeline as Stage 2–7 above (identical parameters).
+After building shifted_df, the waiting times are split into logarithmic time windows:
+
+  Window definitions (in shifted time):
+    ln(t) 2–3 : t in [e^2,  e^3 ] = [7.39,   20.09]  s
+    ln(t) 3–4 : t in [e^3,  e^4 ] = [20.09,  54.60]  s
+    ln(t) 4–5 : t in [e^4,  e^5 ] = [54.60, 148.41]  s
+    ln(t) 5–6 : t in [e^5,  e^6 ] = [148.41, 403.43] s
+    ln(t) 6–7 : t in [e^6,  e^7 ] = [403.43, 1096.6] s
+
+For each window:
+  - Build waiting time PDF (same 50 log-spaced bins, density=True)
+  - Fit power law in log-log space:
+      coeffs = np.polyfit(log(x), log(y), 1)
+      alpha = coeffs[0]   (the exponent)
+      scale = exp(coeffs[1])
+  - Overlay fitted line and annotate exponent α on plot
+
+Figure 1: one subplot per window, individual fits
+Figure 2: all windows overlaid on one plot
+  - Curves are smoothed in log space before plotting:
+      rolling mean of log(y) with window=5, then exp() back
+  - Fit lines shown as dashed, same color as their window
+
+
+STAGE 10 — AVALANCHE ANALYSIS (inter_avalanche_claude.py)
+----------------------------------------------------------
+Input: event_data_shifted.csv
+
+Avalanche grouping uses a dynamic threshold per run:
+  C = mean(waiting_time / time)   computed per run
+
+  An event starts a new avalanche if:
+    waiting_time > C * time
+  Otherwise it belongs to the current avalanche.
+
+  M = number of events in an avalanche (avalanche size)
+
+Size distribution P(M):
+  - Only M >= 2 counted
+  - Integer bins (M is discrete)
+  - PDF = counts / total (bin width = 1)
+  - Power law fit in log-log space: alpha = polyfit(log(M), log(P(M)), 1)[0]
+
+
+VERIFICATION TOOL (verifyeventdetection.py)
+-------------------------------------------
+Single-run diagnostic. Runs the full filter + derivative + threshold on one CSV,
+then loads the corresponding events from event_data.csv and overlays them.
+
+Plot row 1: raw displacement (red, faint) + filtered displacement (black) + event markers (green triangles)
+Plot row 2: filtered velocity + threshold lines (±0.0085 m/s, blue dashed) + above-threshold samples (black dots)
+Green vertical dashed lines mark each detected event across both panels.
+
+Console output: sampling rate, filter window size, event count.
+Use this to confirm parameters are correct before running the full 30-run pipeline.
+
+
+KEY PARAMETERS (shared across all scripts)
+-------------------------------------------
+VELOCITY_THRESHOLD = 0.0085   m/s
+COALESCENCE_TIME   = 0.135    s
+RINGING_FREQ_HZ    = 6        Hz
+FILE_COUNT         = 30
+N_BINS             = 50       (log-spaced histogram bins)
+WAIT_MIN/MAX       = 0.001 / 100    s
+MAG_MIN/MAX        = 1e-6   / 0.1   m
+
+
+FILE DEPENDENCY GRAPH
+----------------------
+trypully.py
+  └─► 1.csv … 30.csv
+        └─► plotmultibple.py
+              └─► event_data.csv
+              └─► event_data_shifted.csv
+                    ├─► log_for_dif_times.py   (re-processes CSVs + uses shifted times)
+                    └─► inter_avalanche_claude.py
+              └─► verifyeventdetection.py       (reads one CSV + event_data.csv)

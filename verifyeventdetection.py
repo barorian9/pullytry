@@ -129,6 +129,7 @@ for _, ev in events.iterrows():
 
 fig.update_yaxes(title_text="Position [m]", row=1, col=1)
 fig.update_yaxes(title_text="Velocity [m/s]", row=2, col=1)
+fig.update_xaxes(type="log", row=1, col=1)
 fig.update_xaxes(title_text="Time [s]", row=2, col=1)
 fig.update_layout(
     height=700,
