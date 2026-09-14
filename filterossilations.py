@@ -7,7 +7,7 @@ from scipy.signal import medfilt
 # --- Parameters ---
 CSV = "24.csv"
 VELOCITY_THRESHOLD = 0.0085   # Threshold for the SMOOTHED velocity
-COALESCENCE_TIME = 0.065     # Merge events closer than this (seconds)
+COALESCENCE_TIME = 0.135     # Merge events closer than this (seconds)
 RINGING_FREQ_HZ = 6       # The frequency to filter out
 
 # --- Load & Prep ---
@@ -37,7 +37,7 @@ df["v_filtered_abs"] = df["v_filtered"].abs()
 
 # --- 2. EVENT DETECTION (On Smoothed Data) ---
 # We use 'v_filtered_abs' here, so we aren't detecting the ringing noise
-df["is_active"] = df["v_filtered"] < -VELOCITY_THRESHOLD
+df["is_active"] = df["v_filtered_abs"] > VELOCITY_THRESHOLD
 
 active_indices = df[df["is_active"]].index
 events_merged = []
