@@ -1,3 +1,8 @@
+> **SUPERSEDED.** This file predates `decisions_ledger_v2.md`. Claims in it
+> about results, thresholds, aging, or Omori behaviour are not current. The
+> ledger is authoritative. This file is kept for its procedural and code
+> content only.
+
 # Pulley Stick-Slip Analysis
 
 Experimental data analysis testing whether a pulley under constant load, undergoing
