@@ -68,8 +68,10 @@ for i in range(1, FILE_COUNT + 1):
 
     # Compute waiting times from event times
     times = events["time"].values
-    wait_times = np.diff(times)
-    wait_t = times[1:]  # time of the second event in each pair
+    # Use the pipeline's Δt definition (start_j - end_{j-1}), not diff of peak times
+    valid = events["waiting_time"].notna()
+    wait_times = events.loc[valid, "waiting_time"].values
+    wait_t     = events.loc[valid, "time"].values
 
     # Plot Δt vs t (the aging plot per run)
     fig.add_trace(go.Scatter(
