@@ -119,7 +119,7 @@ This is a working default, **not a conclusion.** The lean toward a fixed rather 
 
 **Suspected bug in the dynamic branch:** $C = \langle \Delta t / t\rangle$ is computed on *shifted* time, where the second event of each run sits at very small $t_{\text{shifted}}$ → its ratio blows up and inflates $C$. May explain the wide spread in $C$.
 
-### B2. Detection parameters — values `WORKING`, provenance partly `NOT FOUND`
+### B2. Detection parameters — provenance traced to drive frequency — `WORKING` (`VELOCITY_THRESHOLD` still `NOT FOUND`)
 
 ```python
 VELOCITY_THRESHOLD = 0.0085   # m/s, on |v| from filtered displacement
@@ -127,15 +127,21 @@ COALESCENCE_TIME   = 0.135    # s
 RINGING_FREQ_HZ    = 6        # Hz → median filter kernel floor(fs/6), forced odd
 ```
 
+**Drive frequency measured: $7.2$ Hz** ($T = 0.139$ s) — this is what produces the string ringing seen after every slip.
+
 | Parameter | Provenance |
 |---|---|
-| `RINGING_FREQ_HZ = 6` | **Established (A4)** — measured string ringing frequency, visible in raw traces |
-| `VELOCITY_THRESHOLD` | **NOT FOUND** |
-| `COALESCENCE_TIME` | **NOT FOUND** |
+| `RINGING_FREQ_HZ = 6` | **Not the ringing frequency.** Chosen so the filter window $\lfloor f_s/6\rfloor = 17$ samples $= 0.17$ s spans a full drive period. Using $7.2$ directly gives $13$ samples $= 0.13$ s $< T$, leaving a residual. **The name is misleading** — it names a filter-window choice, not a measured frequency. |
+| `COALESCENCE_TIME = 0.135` s | $\approx T$ — one drive period. Events separated by less than one oscillation are not resolved as distinct. |
+| `VELOCITY_THRESHOLD = 0.0085` | **Still `NOT FOUND`.** |
+
+Both `RINGING_FREQ_HZ` and `COALESCENCE_TIME` are **derived from the drive frequency, not independent parameters.** A drive-frequency change on the new rig requires recomputing both (see D7).
 
 Both arrived pre-set in the original code paste. What exists instead: a post-hoc **visual verification** — events overlaid on filtered displacement for run 1 at four zoom levels — after which all three were left unchanged (*"a few misses but in general it looks good"*).
 
 An older script used `COALESCENCE_TIME = 0.065` and a negative-only test (`v < -threshold`); confirmed it did **not** produce `event_data.csv`.
+
+**On `VELOCITY_THRESHOLD` — a likely explanation, not a derivation:** an earlier plot used a threshold of $0.005$ on *unfiltered* velocity, where ringing inflates the velocity distribution; after the median filter the noise floor is different, which plausibly accounts for the pipeline's $0.0085$. **The equivalent plot on filtered data does not exist** — without it there is no basis for $0.0085$ either. Cheap to close ($\sim 5$ min): reproduce the threshold-selection plot on `v_filtered_abs` instead of raw $\lvert v\rvert$.
 
 ---
 
@@ -198,8 +204,8 @@ The median filter is $0.17$ s wide and `COALESCENCE_TIME` is $0.135$ s, so two s
 ### D6. Terminology — "Omori law" — `OPEN`
 $P(\Delta t) \sim \Delta t^{-1}$ is a claim about the **gap distribution**. The Omori law is a claim about the **rate**. These coincide only if the rate decays as $1/t$. Whether it does here is unresolved — the raw per-window counts rise steeply, but C1/D1 show those counts cannot be read as a rate without an exposure correction. **Until the rate is computed properly with exposure, do not call the result "Omori" in `project_summary.md` or anywhere else.**
 
-### D7. Ringing frequency will change in the new rig — `OPEN`
-If the ringing is a string mode, $f \propto 1/L$, so a longer pulley changes it and `RINGING_FREQ_HZ` needs re-measuring before any data is collected on the new setup.
+### D7. Drive frequency will change in the new rig — `OPEN`
+Drive frequency measured at $7.2$ Hz on this rig (B2). If it is a string mode, $f \propto 1/L$, so a longer pulley changes it — and since `RINGING_FREQ_HZ` (filter window) and `COALESCENCE_TIME` (derived from $T$) are both derived from this frequency, not independent (B2), both must be recomputed before any data is collected on the new setup, not just re-measured.
 
 ---
 
