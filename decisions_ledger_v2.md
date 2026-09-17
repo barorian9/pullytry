@@ -2,13 +2,15 @@
 
 *Corrected 2026-09-14 by going through the v1 ledger item by item with Bar. This supersedes v1 and supersedes the "Key results" section of `project_summary.md` wherever they disagree.*
 
-**Status legend:** `LOCKED` = decided and justified · `WORKING` = in use but not decided · `OPEN` = known unresolved · `NOT FOUND` = never established, do not reconstruct
+**Status legend:** `MEASURED` = directly measured from data · `IN USE` = what the code does; not a decision that was reached · `WORKING` = in use but not decided · `OPEN` = known unresolved · `NOT FOUND` = never established, do not reconstruct
 
 ---
 
-## A. Locked decisions
+## A. What the code does, and what was measured
 
-### A1. PDF normalization — `LOCKED`
+IN USE means this is what the code does. It is not a decision that was reached, and in most cases no alternative was ever tested. There has been one exploratory analysis run on proof-of-concept data.
+
+### A1. PDF normalization — `IN USE`
 
 | | |
 |---|---|
@@ -16,7 +18,7 @@
 | **Discrete** (avalanche size $M$) | `counts / len(sizes)`, bin width 1 → a PMF, not a PDF. |
 | **Why** | $y$-axis independent of bin count and sample size; $\int P\,dx = 1$. Log bins have unequal *linear* widths, so per-bin division is required — `density=True` does this automatically. For integer $M$ the width is 1, so the division is a no-op. |
 
-### A2. Log binning — `LOCKED`
+### A2. Log binning — `IN USE`
 
 - `np.geomspace(MIN, MAX, N_BINS+1)`, `N_BINS = 50`
 - Waiting time: `WAIT_MIN, WAIT_MAX = 1e-3, 100` s
@@ -28,7 +30,7 @@
 
 **⚠ Flagged against A6:** `WAIT_MIN = 1e-3` s is below the physical floor. See D2.
 
-### A3. Global $t_0$ — `LOCKED`
+### A3. Global $t_0$ — `IN USE`
 
 The logger clock starts at drive activation plus a manual keypress — **not uniform across runs**. Therefore a new origin was defined:
 
@@ -47,7 +49,7 @@ Written to `event_data_shifted.csv`; raw `event_data.csv` preserved.
 
 **Known weakness:** $t_0$ is itself a random draw from $P(\Delta t)$, and it depends on `VELOCITY_THRESHOLD` — lowering the threshold moves $t_0$ earlier in every run. The earliest windows ($\ln t = 2$–$3$, $3$–$4$) are correspondingly less trustworthy. **New rig: use an external timestamp of load application.**
 
-### A4. Magnitude — filtered, deliberate — `LOCKED`
+### A4. Magnitude — filtered, deliberate — `IN USE`
 
 Two quantities share the letter $M$ — keep them apart:
 
@@ -62,12 +64,12 @@ Two quantities share the letter $M$ — keep them apart:
 
 `magnitude` has only ever been *plotted* (panel 3). It was never fitted. All $P(M)$ work uses event counts.
 
-### A5. $M = 1$ discarded — `LOCKED`
+### A5. $M = 1$ discarded — `IN USE`
 Single events are not avalanches. Only $M \ge 2$ enters $P(M)$.
 
 **A5b.** The first detected event of each run is excluded from avalanche construction (`dropna(subset=["waiting_time"])` in both avalanche scripts). It has no defined preceding gap — the record is left-truncated at $t_0$, which is that event itself. Bound on the effect: $\le 30$ of 293 avalanches shift by one, $\lvert\delta\alpha_M\rvert \lesssim 0.1$. Deliberate, not a bug.
 
-### A6. Sampling rate — `LOCKED` *(measured 2026-09-14)*
+### A6. Sampling rate — `MEASURED` *(measured 2026-09-14)*
 
 $$f_s = 100\ \text{Hz, uniform across all 30 runs}$$
 
@@ -75,7 +77,7 @@ $$f_s = 100\ \text{Hz, uniform across all 30 runs}$$
 - Sampling is **clock-driven, not encoder-driven**
 - Median filter window = **17 samples in every run** → no cross-run non-uniformity in detection
 
-### A7. Fitting — `LOCKED`
+### A7. Fitting — `IN USE`
 
 ```python
 coeffs = np.polyfit(np.log(x), np.log(y), 1)
@@ -86,7 +88,7 @@ scale  = np.exp(coeffs[1])
 - **Revision:** `scipy.optimize.curve_fit` in linear space was used first and abandoned — it is dominated by large $y$ at small $x$ and effectively ignores the tail; the fitted line floated visibly above the histogram. Log-log least squares weights each decade equally.
 - Fit range = all non-empty bins across the full binning range. **No cutoff exclusion applied.** A proposal to drop the first few waiting-time bins was not adopted; the sparse large-$M$ tail was retained in the $P(M)$ fit.
 
-### A8. Runs treated as independent — `LOCKED`
+### A8. Runs treated as independent — `IN USE`
 Avalanches are built per `file_id`. Pooling happens only afterwards, at the level of the resulting $M$ values.
 
 ---
@@ -196,7 +198,7 @@ All 30 runs cover the **same distance** in times spanning a factor of 19. What v
 ## D. Open issues
 
 ### D1. Data-dependent censoring — `OPEN`, narrowed
-Every run stops when the weight reaches the floor, i.e. at a cumulative-sum crossing $\sum_j M_j \approx L$ with $L \approx 0.61 \pm 0.05$ m (small variation attributed to non-uniform starting height). Since run duration varies by $19\times$ at fixed distance, **the late windows are populated by the subset of slow runs.** Direction of bias: toward apparent aging. *New rig: a track long enough that most runs end on the timer, not the floor — this removes the problem entirely.*
+Every run stops when the weight reaches the floor, i.e. at a cumulative-sum crossing $\sum_j M_j \approx L$ with $L \approx 0.61 \pm 0.05$ m (small variation attributed to non-uniform starting height). *New rig: a track long enough that most runs end on the timer, not the floor — this removes the problem entirely.*
 
 **Measured — runs surviving to the end of each $\ln t$ window:**
 
@@ -214,8 +216,6 @@ Every run stops when the weight reaches the floor, i.e. at a cumulative-sum cros
 **Narrowed conclusion:** censoring does **not** measurably affect the stationary-shape claim, which rests on windows $k=2$ through $k=5$ — fully or near-fully populated, and the one window with enough attrition to test ($k=5$) shows the exponent is robust to exactly that split. **Censoring remains relevant only to $k=6$ (3/30 survive) and anything built on it — in particular $\max\Delta t \sim t^{0.98}$ (D3), which draws on the sparsely-populated tail windows.** No equivalent robustness test has been run there; D1 stays open for that reason, not for the stationary-shape claim.
 
 ### D2. Encoder resolution vs velocity threshold — `CLOSED`
-$\texttt{VELOCITY\_THRESHOLD} = 0.0085$ m/s at $f_s = 100$ Hz $\Rightarrow$ $8.5\times10^{-5}$ m between consecutive samples. **Unknown how many encoder counts that is.** If 1–2, the threshold sits on the quantization floor rather than on physical noise, and any slip smaller than one count is invisible by construction — a hard lower bound on $P(M)$ and $P(\Delta X)$.
-*To get it:* counts per revolution × pulley diameter → metres per count. Or from the data: smallest non-zero difference in `x_m` within a run.
 
 **Encoder spec:** ZSP4006-003G-600B-5-24C, $600$ PPR, quadrature $\times 4$ → $2400$ counts/rev.
 **Pulley radius:** $r = 0.0125$ m (user-stated; an earlier $r = 0.02$ m appears in older files as an AI placeholder — $0.0125$ m is the value in the final sketch and is what is used below).
@@ -287,7 +287,7 @@ Velocity from one-sample differencing is quantized in steps of $\delta \cdot f_s
 | Quantity | Value | Status |
 |---|---|---|
 | $P(\Delta t)$ | $\sim \Delta t^{-1}$ | Holds. **Do not call it Omori** (D6) |
-| Aging in shape | five windows, $\ln t = 2$–$7$: $-0.95, -1.00, -1.18, -1.19, -1.11$ | **Not a result** — no uncertainty (D4), censoring bias unquantified (D1) |
+| Aging in shape | five windows, $\ln t = 2$–$7$: $-0.95, -1.00, -1.18, -1.19, -1.11$ | **Not a result** — no uncertainty (D4), censoring tested and cleared for $k=2$–$5$ (D1) |
 | Cutoff growth | $\max\Delta t \sim t^{0.98}$ | **Suspected artifact** (D3) — untested |
 | Threshold type | fixed, 10 s | **Working default, not decided** (B1) |
 | $P(M)$ | $\sim M^{-2.07}$ | **Parameter-dependent** — report $\alpha_M(\Delta t_{\text{thr}})$, not a number (B1) |
