@@ -119,7 +119,7 @@ This is a working default, **not a conclusion.** The lean toward a fixed rather 
 
 **Suspected bug in the dynamic branch:** $C = \langle \Delta t / t\rangle$ is computed on *shifted* time, where the second event of each run sits at very small $t_{\text{shifted}}$ → its ratio blows up and inflates $C$. May explain the wide spread in $C$.
 
-### B2. Detection parameters — provenance traced to drive frequency — `WORKING` (`VELOCITY_THRESHOLD` still `NOT FOUND`)
+### B2. Detection parameters — provenance traced to drive frequency — `WORKING` (`VELOCITY_THRESHOLD` — `NO JUSTIFICATION EXISTS`)
 
 ```python
 VELOCITY_THRESHOLD = 0.0085   # m/s, on |v| from filtered displacement
@@ -131,9 +131,9 @@ RINGING_FREQ_HZ    = 6        # Hz → median filter kernel floor(fs/6), forced 
 
 | Parameter | Provenance |
 |---|---|
-| `RINGING_FREQ_HZ = 6` | **Not the ringing frequency.** Chosen so the filter window $\lfloor f_s/6\rfloor = 17$ samples $= 0.17$ s spans a full drive period. Using $7.2$ directly gives $13$ samples $= 0.13$ s $< T$, leaving a residual. **The name is misleading** — it names a filter-window choice, not a measured frequency. |
+| `RINGING_FREQ_HZ = 6` | **Basis is a user visual rejection, not a derivation.** An AI first proposed using the measured drive frequency directly ($7.2$ Hz → $13$-sample filter window). The user rejected this from direct inspection of the filtered traces — *"the 6hz completely erases the after slip oscillation"* — i.e. empirically, $6$ Hz ($17$-sample window) removed the ringing where the $7.2$ Hz proposal did not. The AI then reversed its recommendation to $6$. **No independent verification was recorded at the time.** The period argument elsewhere in this ledger — $17$ samples $= 0.17$ s spans a full drive period $T = 0.139$ s, while $13$ samples $= 0.13$ s falls short — was identified **later, as consistent support found after the fact, not the original reasoning.** The name is still misleading: it names a filter-window choice validated by eye, not an independently measured frequency. |
 | `COALESCENCE_TIME = 0.135` s | $\approx T$ — one drive period. Events separated by less than one oscillation are not resolved as distinct. |
-| `VELOCITY_THRESHOLD = 0.0085` | **Still `NOT FOUND`.** |
+| `VELOCITY_THRESHOLD = 0.0085` | **`NO JUSTIFICATION EXISTS`.** Stronger than `NOT FOUND`: a reason was recorded, and it does not hold up — see below. |
 
 Both `RINGING_FREQ_HZ` and `COALESCENCE_TIME` are **derived from the drive frequency, not independent parameters.** A drive-frequency change on the new rig requires recomputing both (see D7).
 
@@ -141,7 +141,9 @@ Both arrived pre-set in the original code paste. What exists instead: a post-hoc
 
 An older script used `COALESCENCE_TIME = 0.065` and a negative-only test (`v < -threshold`); confirmed it did **not** produce `event_data.csv`.
 
-**On `VELOCITY_THRESHOLD` — the histogram-valley method itself is invalid on this data.** The filtered-data version of the threshold plot was run (`velocity_threshold_filtered.py`, on `7.2HZ.csv`, $17$-sample median filter per A4/A6). A KDE of $\log_{10}\lvert v\rvert$ does show local minima, but at multiple bandwidths they come out evenly spaced ($v \approx 0.0048, 0.0084, 0.0118, 0.0152, \dots$, spacing $\Delta v \approx 0.0034$ m/s) — a comb, not a single valley. $0.0085$ is itself one of these minima, the same kind of object as $0.005$, so neither can be called the noise/event boundary. **Cause: encoder quantization**, confirmed directly — the median spacing between distinct `x_m` values is $3.30\times10^{-5}$ m (D2), matching the $\Delta v \cdot \Delta t \approx 3.4\times10^{-5}$ m/count predicted from the comb spacing. Velocity is therefore restricted to multiples of this step, and the KDE minima are the empty gaps between allowed velocity values, not a physical noise/event break. A median filter of quantized values is itself quantized, which is also why the raw and filtered histograms looked nearly identical — that similarity is not evidence that filtering left the noise floor unchanged. `VELOCITY_THRESHOLD` remains `NOT FOUND`; it must be set on physical grounds, not read off this histogram. $0.005$ is not preferable to $0.0085$ — neither is supported.
+**`VELOCITY_THRESHOLD` provenance, in full.** The only reason ever recorded for $0.0085$ is a line from Gemini calling it a *"sweet spot above the noise floor,"* referring to a histogram from a `DIFF.py` script that **exists nowhere** in the project history or the current repo. The user never wrote a justification for this number; in the user's own messages, $0.0085$ appears **only inside pasted code**, never argued for. Other candidate values were AI-proposed and never adopted: $0.01$, $0.012$, $0.015$, a directional-only test (`v < -threshold`, confirmed above not to have produced `event_data.csv`), and a $k \times \text{MAD}$ scheme. None of these has a recorded justification either — $0.0085$ is simply the value that ended up in the code that was run.
+
+**On the histogram-valley method — tested independently, found invalid on this data.** The filtered-data version of the threshold plot was run (`velocity_threshold_filtered.py`, on `7.2HZ.csv`, $17$-sample median filter per A4/A6). A KDE of $\log_{10}\lvert v\rvert$ does show local minima, but at multiple bandwidths they come out evenly spaced ($v \approx 0.0048, 0.0084, 0.0118, 0.0152, \dots$, spacing $\Delta v \approx 0.0034$ m/s) — a comb, not a single valley. $0.0085$ is itself one of these minima, the same kind of object as $0.005$, so neither can be called the noise/event boundary. **Cause: encoder quantization**, confirmed directly (D2, now `CLOSED`) — the median spacing between distinct `x_m` values is $3.30\times10^{-5}$ m, matching both the $3.27\times10^{-5}$ m computed from the encoder spec and the $\Delta v \cdot \Delta t \approx 3.4\times10^{-5}$ m/count predicted from the comb spacing. Velocity is therefore restricted to multiples of this step, and the KDE minima are the empty gaps between allowed velocity values, not a physical noise/event break. A median filter of quantized values is itself quantized, which is also why the raw and filtered histograms looked nearly identical — that similarity is not evidence that filtering left the noise floor unchanged. **`VELOCITY_THRESHOLD` has no justification and cannot be derived from this histogram method; it must be set on physical grounds.** $0.005$ is not preferable to $0.0085$ — neither is supported.
 
 ---
 
@@ -178,22 +180,64 @@ Windows are in shifted time, $k$ such that $t \in [e^k, e^{k+1}]$:
 
 All 30 runs cover the **same distance** in times spanning a factor of 19. What varies between runs is not how much happened, but how slowly.
 
+### C3. Hardware facts
+
+| | |
+|---|---|
+| Applied load | $270$ g (user-stated). An AI placeholder of $0.2$ kg appears in old files — **disregard it.** |
+| Track length, old rig | $\approx 66$ cm; typical travel per run $\approx 61$ cm (consistent with C2's $x_{\text{total}} \approx 0.61$ m) |
+| Track length, new rig | $\approx 240$ cm — a factor $3.6\times$ longer, $\approx 1.3$ extra $e$-folds in time, i.e. roughly **one additional $\ln(t)$ window** |
+| String | Ordinary fishing line. Length: **`NOT FOUND`.** |
+| Drive | Function generator at $7.2$ Hz (user-stated). An AI-run PSD reported $7.19$ Hz. Drive strength and damping have since been **changed by the user.** |
+| Sampling rate | $100$ Hz, **chosen by the user** after an AI proposal — not derived from anything (see A6, D8). |
+
 ---
 
 ## D. Open issues
 
-### D1. Data-dependent censoring — `OPEN`
-Every run stops when the weight reaches the floor, i.e. at a cumulative-sum crossing $\sum_j M_j \approx L$ with $L \approx 0.61 \pm 0.05$ m (small variation attributed to non-uniform starting height). Since run duration varies by $19\times$ at fixed distance, **the late windows are populated by the subset of slow runs.** Direction of bias: toward apparent aging. **Not quantified.** Must be revisited before any time-dependence claim is published. *New rig: a track long enough that most runs end on the timer, not the floor — this removes the problem entirely.*
+### D1. Data-dependent censoring — `OPEN`, narrowed
+Every run stops when the weight reaches the floor, i.e. at a cumulative-sum crossing $\sum_j M_j \approx L$ with $L \approx 0.61 \pm 0.05$ m (small variation attributed to non-uniform starting height). Since run duration varies by $19\times$ at fixed distance, **the late windows are populated by the subset of slow runs.** Direction of bias: toward apparent aging. *New rig: a track long enough that most runs end on the timer, not the floor — this removes the problem entirely.*
 
-### D2. Encoder resolution vs velocity threshold — `OPEN`
+**Measured — runs surviving to the end of each $\ln t$ window:**
+
+| $k$ | window ends at [s] | runs surviving |
+|---|---|---|
+| 2 | $20.1$ | $30/30$ |
+| 3 | $54.6$ | $30/30$ |
+| 4 | $148.4$ | $30/30$ |
+| 5 | $403.4$ | $23/30$ |
+| 6 | $1096.6$ | $3/30$ |
+| 7 | $2981.0$ | $0/30$ |
+
+**Direct test on $k=5$, the most populated window:** fitting the waiting-time exponent over all $30$ runs gives $\alpha = -1.175$ ($N=644$); over the $23$ survivors only, $\alpha = -1.141$ ($N=492$). Shift $0.034$ — removing $24\%$ of the sample, precisely the part suspected of bias, **barely moves the exponent.**
+
+**Narrowed conclusion:** censoring does **not** measurably affect the stationary-shape claim, which rests on windows $k=2$ through $k=5$ — fully or near-fully populated, and the one window with enough attrition to test ($k=5$) shows the exponent is robust to exactly that split. **Censoring remains relevant only to $k=6$ (3/30 survive) and anything built on it — in particular $\max\Delta t \sim t^{0.98}$ (D3), which draws on the sparsely-populated tail windows.** No equivalent robustness test has been run there; D1 stays open for that reason, not for the stationary-shape claim.
+
+### D2. Encoder resolution vs velocity threshold — `CLOSED`
 $\texttt{VELOCITY\_THRESHOLD} = 0.0085$ m/s at $f_s = 100$ Hz $\Rightarrow$ $8.5\times10^{-5}$ m between consecutive samples. **Unknown how many encoder counts that is.** If 1–2, the threshold sits on the quantization floor rather than on physical noise, and any slip smaller than one count is invisible by construction — a hard lower bound on $P(M)$ and $P(\Delta X)$.
 *To get it:* counts per revolution × pulley diameter → metres per count. Or from the data: smallest non-zero difference in `x_m` within a run.
 
-**Measured directly from `7.2HZ.csv`:** median spacing between distinct `x_m` values is $\delta = 3.30\times10^{-5}$ m (5th/95th percentile $3.20\times10^{-5}$–$5.89\times10^{-4}$ m), confirmed independently by the $\Delta v \approx 0.0034$ m/s comb spacing in the filtered-velocity KDE (B2), which predicts $\delta = \Delta v \cdot \Delta t \approx 3.4\times10^{-5}$ m — the two agree. This makes $\texttt{VELOCITY\_THRESHOLD} = 0.0085$ m/s $\approx 8.5\times10^{-5}/3.30\times10^{-5} \approx 2.6$ counts per sample step — close enough to the quantization floor that the concern in this item is real, not hypothetical. Still open: the counts-per-revolution × pulley-diameter cross-check, and what threshold (if any) would sit safely above the floor.
+**Encoder spec:** ZSP4006-003G-600B-5-24C, $600$ PPR, quadrature $\times 4$ → $2400$ counts/rev.
+**Pulley radius:** $r = 0.0125$ m (user-stated; an earlier $r = 0.02$ m appears in older files as an AI placeholder — $0.0125$ m is the value in the final sketch and is what is used below).
+
+$$\delta = \frac{2\pi \cdot 0.0125}{2400} = 3.27\times10^{-5}\ \text{m per count}$$
+
+**Three independent sources agree:**
+
+| Source | Value |
+|---|---|
+| Encoder calculation (above) | $3.27\times10^{-5}$ m |
+| Measured median step in `x_m`, direct from `7.2HZ.csv` (5th/95th pct $3.20\times10^{-5}$–$5.89\times10^{-4}$ m) | $3.30\times10^{-5}$ m |
+| KDE comb spacing in filtered velocity (B2) — $\delta = \Delta v \cdot \Delta t$ | $\approx 3.4\times10^{-5}$ m |
+
+**Caveat on the encoder calculation:** the $2400$ counts/rev figure was **inferred by an AI from the model number, with no datasheet consulted**, and its later "confirmation" was **circular** — the sketch meant to check it simply hard-coded `countsPerRev = 2400`. The encoder-spec number is not, by itself, independently verified. **What makes $\delta \approx 3.3\times10^{-5}$ m trustworthy is the direct measurement from the data** (median step in `x_m`), which agrees with the encoder calculation to within $1\%$ and with the KDE comb spacing to within $4\%$.
+
+**Conclusion:** $\texttt{VELOCITY\_THRESHOLD} = 0.0085$ m/s $= 8.5\times10^{-5}/3.30\times10^{-5} \approx 2.6$ encoder counts per sample step. **The threshold sits on the quantization floor.** `CLOSED` — the question this item asked (how many counts is the threshold) is answered; see D8 for the consequence for sampling-rate choices, and B2 for the (absent) justification of the threshold value itself.
 
 ### D3. $\max\Delta t \sim t^{0.98}$ may be a binning artifact — `OPEN`
 $\max\Delta t$ is measured *inside* a window $[e^k, e^{k+1}]$ whose linear width is $e^k(e-1) \propto t$. No gap can exceed the window containing it, so the upper bound on $\max\Delta t$ grows linearly with $t$ **by construction**. With a heavy-tailed distribution the maximum tracks that bound and returns an exponent $\approx 1$. The measured value is $0.98$.
 *Decisive test (cheap):* shuffle the $\Delta t$ values across times, keeping the time stamps, and recompute $\max\Delta t$ per window. The shuffled data has no aging by construction. If $t^{\approx 1}$ survives, the finding is dead. Run the same test on $\mathrm{mean}\,\Delta t \sim t^{0.67}$.
+**Also unresolved from D1:** this exponent draws on windows $k=6$–$7$, where only $3/30$ and $0/30$ runs survive — the one part of D1's censoring concern that was not cleared by the $k=5$ robustness test. The binning artifact above and D1's censoring bias are both live, uncontrolled explanations for $0.98$ until the shuffle test is run.
 
 ### D4. No uncertainty on any exponent — `OPEN`
 Not computed anywhere: not for $\alpha$ of $P(\Delta t)$, not for $\alpha_M$, not for the $0.98$ exponent. **"No aging" is therefore not a result** — it is a visual observation on five numbers ($-0.95, -1.00, -1.18, -1.19, -1.11$), whose ordering is monotone rather than scattered. When it is addressed: bootstrap over raw events, not `polyfit` errors on bin points (bins are neither independent nor equally weighted).
@@ -208,6 +252,17 @@ $P(\Delta t) \sim \Delta t^{-1}$ is a claim about the **gap distribution**. The 
 
 ### D7. Drive frequency will change in the new rig — `OPEN`
 Drive frequency measured at $7.2$ Hz on this rig (B2). If it is a string mode, $f \propto 1/L$, so a longer pulley changes it — and since `RINGING_FREQ_HZ` (filter window) and `COALESCENCE_TIME` (derived from $T$) are both derived from this frequency, not independent (B2), both must be recomputed before any data is collected on the new setup, not just re-measured.
+
+**Consequence of D2 (now closed):** the quantization floor ($\delta \approx 3.3\times10^{-5}$ m, D2) is a property of the encoder, not the drive frequency — it carries over unchanged to the new rig regardless of drive-frequency changes. If finer velocity resolution is wanted there, the fix is a higher-PPR encoder, not a higher sampling rate (D8).
+
+### D8. Velocity quantization vs sampling rate — `OPEN`
+Velocity from one-sample differencing is quantized in steps of $\delta \cdot f_s$ (D2), so **raising $f_s$ makes velocity resolution worse, not better**: $100$ Hz → $3.3\times10^{-3}$ m/s per step; $200$ Hz → $6.5\times10^{-3}$ m/s per step. Velocity resolution improves only with a **finer encoder** (more counts/rev) or by **differencing over a multi-sample window**. A higher $f_s$ still helps resolve event *shape* (more samples across a slip). **Design implication: a higher-PPR encoder addresses the quantization floor; a higher sampling rate does not.**
+
+### D9. Unresolved concerns carried over from older chats — `OPEN`
+- Whether $100$ Hz resolves the pulley vibration the user wanted to capture: raised, never tested.
+- Whether the "micro-slips" detected after filtering are physical or filter artifacts: a zoom test was proposed, no answer recorded.
+- Whether the recoil at $t \approx 789$ s is a real event or an artifact: no decision recorded.
+- Drive strength and damping: raised as problems, since addressed by the user (stronger generator, added friction) — **not yet validated on data.**
 
 ---
 
