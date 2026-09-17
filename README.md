@@ -18,7 +18,7 @@ as crumpled sheets?
 
 | File | Contents |
 |---|---|
-| `project_summary.md` | **Master reference.** Methodology, parameters, every graph, results, physical interpretation, comparison to Shohat, current status. |
+| `decisions_ledger_v2.md` | **Master reference.** Locked decisions, working defaults, measured facts, open issues, and corrected headline results — authoritative over every other doc in this repo. |
 | `pipeline.txt` | Stage-by-stage description of the processing chain, plus the file dependency graph. |
 | `README.md` | This index. |
 
