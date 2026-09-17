@@ -239,6 +239,8 @@ $\max\Delta t$ is measured *inside* a window $[e^k, e^{k+1}]$ whose linear width
 *Decisive test (cheap):* shuffle the $\Delta t$ values across times, keeping the time stamps, and recompute $\max\Delta t$ per window. The shuffled data has no aging by construction. If $t^{\approx 1}$ survives, the finding is dead. Run the same test on $\mathrm{mean}\,\Delta t \sim t^{0.67}$.
 **Also unresolved from D1:** this exponent draws on windows $k=6$–$7$, where only $3/30$ and $0/30$ runs survive — the one part of D1's censoring concern that was not cleared by the $k=5$ robustness test. The binning artifact above and D1's censoring bias are both live, uncontrolled explanations for $0.98$ until the shuffle test is run.
 
+**A further truncation, at the per-run level:** a gap cannot exceed the time remaining in the run from the event onward, so the right edge of $P(\Delta t)$ is systematically truncated. This compounds with the window-width bound above. Runs were stopped manually after the weight reached the floor, so each recording contains a silent tail of variable length ($4$–$1110$ s) that is not physics and does not affect the coverage calculations (C1), which used the time of the last *event*, not the end of the recording.
+
 ### D4. No uncertainty on any exponent — `OPEN`
 Not computed anywhere: not for $\alpha$ of $P(\Delta t)$, not for $\alpha_M$, not for the $0.98$ exponent. **"No aging" is therefore not a result** — it is a visual observation on five numbers ($-0.95, -1.00, -1.18, -1.19, -1.11$), whose ordering is monotone rather than scattered. When it is addressed: bootstrap over raw events, not `polyfit` errors on bin points (bins are neither independent nor equally weighted).
 
